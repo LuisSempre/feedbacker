@@ -1,9 +1,13 @@
 <template>
-  <div class="flex justify-between">
-    <h1 class="text-4xl font-black text-gray-800">Entre na sua conta</h1>
+  <div class="flex justify-between" id="modal-login">
+    <h1 class="text-4xl font-black text-gray-800">
+      Entre na sua conta
+    </h1>
+
     <button
       @click="close"
-      class="text-4xl text-gray-600 focus:outline-line">
+      class="text-4xl text-gray-600 focus:outline-none"
+    >
       &times;
     </button>
   </div>
@@ -13,59 +17,88 @@
       <label class="block">
         <span class="text-lg font-medium text-gray-800">E-mail</span>
         <input
+          id="email-field"
           v-model="state.email.value"
-          :class="{
-            'border-brand-ranger': !!state.email.errorMessage
-          }"
           type="email"
-          class="block w-full px-4 py-3 mt-1 text-lg bg-gray-100 border-2 border-transparent rounded"
-          placeholder="lu@lu.com"/>
-          <span class="block font-medium text-brand-danger" v-if="!!state.email.errorMessage">
-            {{ state.email.errorMessage}}
-          </span>
-      </label>
-      <label class="block">
-        <span class="text-lg font-medium text-gray-800">E-mail</span>
-        <input
-          v-model="state.password.value"
           :class="{
-            'border-brand-ranger': !!state.password.errorMessage
+            'border-brand-danger': !!state.email.errorMessage
           }"
-          type="password"
           class="block w-full px-4 py-3 mt-1 text-lg bg-gray-100 border-2 border-transparent rounded"
-          placeholder="lu@lu.com"/>
-          <span class="block font-medium text-brand-danger" v-if="!!state.password.errorMessage">
-            {{ state.password.errorMessage}}
-          </span>
+          placeholder="jane.dae@gmail.com"
+        >
+        <span
+          id="email-error"
+          v-if="!!state.email.errorMessage"
+          class="block font-medium text-brand-danger"
+        >
+          {{ state.email.errorMessage }}
+        </span>
       </label>
+
+      <label class="block mt-9">
+        <span class="text-lg font-medium text-gray-800">Senha</span>
+        <input
+          id="password-field"
+          v-model="state.password.value"
+          type="password"
+          :class="{
+            'border-brand-danger': !!state.password.errorMessage
+          }"
+          class="block w-full px-4 py-3 mt-1 text-lg bg-gray-100 border-2 border-transparent rounded"
+          placeholder="jane.dae@gmail.com"
+        >
+        <span
+          v-if="!!state.password.errorMessage"
+          class="block font-medium text-brand-danger"
+        >
+          {{ state.password.errorMessage }}
+        </span>
+      </label>
+
       <button
-      :disabled="state.isLoading"
-      type="submit"
-      :class="{'opacity-50':state.isLoading}"
-        class="px-8 py-3 mt-10 text-white transition-all duration-150 rounded-full text-2lg bg-brand-main focus:outline-none">
-      >Entrar</button>
+        id="submit-button"
+        :disabled="state.isLoading"
+        type="submit"
+        :class="{
+          'opacity-50': state.isLoading
+        }"
+        class="px-8 py-3 mt-10 text-2xl font-bold text-white transition-all duration-150 rounded-full bg-brand-main focus:outline-none"
+      >
+        <icon v-if="state.isLoading" name="loading" class="animate-spin" />
+        <span v-else>Entrar</span>
+      </button>
     </form>
   </div>
 </template>
 
 <script>
 import { reactive } from 'vue'
-import { useField } from 'vuelidate'
+import { useRouter } from 'vue-router'
+import { useField } from 'vee-validate'
+import { useToast } from 'vue-toastification'
 import useModal from '../../hooks/useModal'
-import { validateEmptyAndLenght3, validateEmptyAndEmail } from '../../utils/validators'
+import { validateEmptyAndLength3, validateEmptyAndEmail } from '../../utils/validators'
+import services from '../../services'
+
 export default {
+  components: { },
   setup () {
+    const router = useRouter()
+    const modal = useModal()
+    const toast = useToast()
+
     const {
       value: emailValue,
       errorMessage: emailErrorMessage
     } = useField('email', validateEmptyAndEmail)
+
     const {
       value: passwordValue,
       errorMessage: passwordErrorMessage
-    } = useField('password', validateEmptyAndLenght3)
-    const modal = useModal()
+    } = useField('password', validateEmptyAndLength3)
+
     const state = reactive({
-      hadErros: false,
+      hasErrors: false,
       isLoading: false,
       email: {
         value: emailValue,
@@ -76,19 +109,47 @@ export default {
         errorMessage: passwordErrorMessage
       }
     })
-    function handleSubmit () {
 
+    async function handleSubmit () {
+      try {
+        toast.clear()
+        state.isLoading = true
+        const { data, errors } = await services.auth.login({
+          email: state.email.value,
+          password: state.password.value
+        })
+
+        if (!errors) {
+          window.localStorage.setItem('token', data.token)
+          router.push({ name: 'Feedbacks' })
+          state.isLoading = false
+          modal.close()
+          return
+        }
+
+        if (errors.status === 404) {
+          toast.error('E-mail não encontrado')
+        }
+        if (errors.status === 401) {
+          toast.error('E-mail/senha inválidos')
+        }
+        if (errors.status === 400) {
+          toast.error('Ocorreu um erro ao fazer o login')
+        }
+
+        state.isLoading = false
+      } catch (error) {
+        state.isLoading = false
+        state.hasErrors = !!error
+        toast.error('Ocorreu um erro ao fazer o login')
+      }
     }
+
     return {
       state,
       close: modal.close,
       handleSubmit
     }
   }
-
 }
 </script>
-
-<style>
-
-</style>
