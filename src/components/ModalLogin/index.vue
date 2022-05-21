@@ -1,5 +1,5 @@
 <template>
-  <h1>HI</h1>
+  <h1 class="text-brand-main">Modal Login</h1>
 </template>
 
 <script>
