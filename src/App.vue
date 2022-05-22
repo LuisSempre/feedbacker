@@ -5,10 +5,26 @@
 
 <script>
 import ModalFactory from './components/ModalFactory'
+import { useRouter, useRoute } from 'vue-router'
+import { watch } from 'vue'
+import services from './services'
 
 export default {
   components: { ModalFactory },
   setup () {
+    const router = useRouter()
+    const route = useRoute()
+    watch(() => route.path, async () => {
+      if (route.meta.hasAuth) {
+        const token = window.localStorage.getItem('token')
+        if (!token) {
+          router.push('/login')
+          return
+        }
+        const { data } = await services.users.getMe()
+        console.log('data', data)
+      }
+    })
   }
 }
 </script>
